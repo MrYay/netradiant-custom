@@ -497,6 +497,7 @@ void Patch::FlipTexture( int nAxis ){
 	}
 
 	controlPointsChanged();
+	Patch_textureChanged();
 }
 
 void Patch::TranslateTexture( float s, float t ){
@@ -512,6 +513,7 @@ void Patch::TranslateTexture( float s, float t ){
 	}
 
 	controlPointsChanged();
+	Patch_textureChanged();
 }
 
 void Patch::ScaleTexture( float s, float t ){
@@ -524,6 +526,7 @@ void Patch::ScaleTexture( float s, float t ){
 	}
 
 	controlPointsChanged();
+	Patch_textureChanged();
 }
 
 void Patch::RotateTexture( float angle ){
@@ -541,6 +544,7 @@ void Patch::RotateTexture( float angle ){
 	}
 
 	controlPointsChanged();
+	Patch_textureChanged();
 }
 
 
@@ -565,6 +569,7 @@ void Patch::SetTextureRepeat( float s, float t ){
 	}
 
 	controlPointsChanged();
+	Patch_textureChanged();
 }
 
 /*
@@ -754,6 +759,7 @@ void Patch::NaturalTexture(){
 	}
 
 	controlPointsChanged();
+	Patch_textureChanged();
 }
 
 
@@ -1221,6 +1227,7 @@ void Patch::ProjectTexture( TextureProjection projection, const Vector3& normal 
 	}
 
 	controlPointsChanged();
+	Patch_textureChanged();
 }
 #endif
 
@@ -1236,6 +1243,7 @@ void Patch::ProjectTexture( const texdef_t& texdef, const Vector3* direction ){
 	}
 
 	controlPointsChanged();
+	Patch_textureChanged();
 }
 
 void Patch::constructPlane( const AABB& aabb, int axis, std::size_t width, std::size_t height ){
@@ -3278,15 +3286,18 @@ void Patch::createThickenedWall(const Patch& sourcePatch,
 }
 
 
-class PatchFilterWrapper : public Filter
+class PatchFilterWrapper final : public Filter
 {
 	bool m_active;
 	bool m_invert;
 	PatchFilter& m_filter;
 public:
-	PatchFilterWrapper( PatchFilter& filter, bool invert ) : m_invert( invert ), m_filter( filter ){
+	PatchFilterWrapper( PatchFilter& filter, bool invert ) :
+		m_active( false ), // suppress uninitialized warning
+		m_invert( invert ),
+		m_filter( filter ){
 	}
-	void setActive( bool active ){
+	void setActive( bool active ) override {
 		m_active = active;
 	}
 	bool active(){

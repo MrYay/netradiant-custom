@@ -47,7 +47,7 @@
 #include "os/path.h"
 #include "stream/stringstream.h"
 
-class VectorLightList : public LightList
+class VectorLightList final : public LightList
 {
 	typedef std::vector<const RendererLight*> Lights;
 	Lights m_lights;
@@ -58,11 +58,11 @@ public:
 	void clear(){
 		m_lights.clear();
 	}
-	void evaluateLights() const {
+	void evaluateLights() const override {
 	}
-	void lightsChanged() const {
+	void lightsChanged() const override {
 	}
-	void forEachLight( const RendererLightCallback& callback ) const {
+	void forEachLight( const RendererLightCallback& callback ) const override {
 		for ( Lights::const_iterator i = m_lights.begin(); i != m_lights.end(); ++i )
 		{
 			callback( *( *i ) );
@@ -326,8 +326,7 @@ private:
 	void constructNull(){
 		AABB aabb( Vector3( 0, 0, 0 ), Vector3( 8, 8, 8 ) );
 
-		Vector3 points[8];
-		aabb_corners( aabb, points );
+		const std::array<Vector3, 8> points = aabb_corners( aabb );
 
 		m_vertices.resize( 24 );
 

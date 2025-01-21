@@ -378,12 +378,12 @@ void DoCommandListDlg(){
 		auto commandLine = new QLineEdit;
 		grid->addWidget( commandLine, 0, 0 );
 		commandLine->setClearButtonEnabled( true );
-		commandLine->setPlaceholderText( QString::fromUtf8( u8"🔍 by command name" ) );
+		commandLine->setPlaceholderText( QString::fromUtf8( "🔍 by command name" ) );
 
 		auto keyLine = new QLineEdit;
 		grid->addWidget( keyLine, 0, 1 );
 		keyLine->setClearButtonEnabled( true );
-		keyLine->setPlaceholderText( QString::fromUtf8( u8"🔍 by keys" ) );
+		keyLine->setPlaceholderText( QString::fromUtf8( "🔍 by keys" ) );
 
 		const auto filter = [tree]( const int column, const QString& text ){
 			for( QTreeWidgetItemIterator it( tree ); *it; ++it )
@@ -419,7 +419,8 @@ void DoCommandListDlg(){
 
 		QPushButton *resetallbutton = buttons->addButton( "Reset All", QDialogButtonBox::ButtonRole::ResetRole );
 		QObject::connect( resetallbutton, &QPushButton::clicked, [tree](){
-			accelerator_reset_all_button_clicked( tree );
+			if( eIDYES == qt_MessageBox( tree, "Surely reset all shortcuts now?", "Boo!", EMessageBoxType::Question ) )
+				accelerator_reset_all_button_clicked( tree );
 		} );
 	}
 
@@ -428,7 +429,7 @@ void DoCommandListDlg(){
 
 
 
-#include "profile/profile.h"
+#include "profile/profile2.h"
 
 const char* const COMMANDS_VERSION = "1.0-gtk-accelnames";
 
@@ -453,25 +454,24 @@ void SaveCommandMap( const char* path ){
 
 class ReadCommandMap
 {
-	const char* m_filename;
+	const IniFile& m_ini;
 	std::size_t m_count;
 public:
-	ReadCommandMap( const char* filename ) : m_filename( filename ), m_count( 0 ){
+	ReadCommandMap( const IniFile& ini ) : m_ini( ini ), m_count( 0 ){
 	}
 	void operator()( const char* name, QKeySequence& accelerator ){
-		char value[1024];
-		if ( read_var( m_filename, "Commands", name, value ) ) {
-			if ( string_empty( value ) ) {
+		if ( auto value = m_ini.getValue( "Commands", name ) ) {
+			if ( string_empty( *value ) ) {
 				accelerator = {};
 			}
 			else{
-				accelerator = QKeySequence( value );
+				accelerator = QKeySequence( *value );
 				if ( QKeySequence_valid( accelerator ) ) {
 					++m_count;
 				}
 				else
 				{
-					globalWarningStream() << "WARNING: failed to parse user command " << makeQuoted( name ) << ": unknown key " << makeQuoted( value ) << '\n';
+					globalWarningStream() << "WARNING: failed to parse user command " << makeQuoted( name ) << ": unknown key " << makeQuoted( *value ) << '\n';
 				}
 			}
 		}
@@ -484,24 +484,15 @@ public:
 void LoadCommandMap( const char* path ){
 	const auto strINI = StringStream( path, "shortcuts.ini" );
 
-	FILE* f = fopen( strINI, "r" );
-	if ( f != 0 ) {
-		fclose( f );
+	if ( IniFile ini; ini.read( strINI ) ) {
 		globalOutputStream() << "loading custom shortcuts list from " << makeQuoted( strINI ) << '\n';
 
-		Version version = version_parse( COMMANDS_VERSION );
-		Version dataVersion = { 0, 0 };
-
-		{
-			char value[1024];
-			if ( read_var( strINI, "Version", "number", value ) ) {
-				dataVersion = version_parse( value );
-			}
-		}
+		const Version version = version_parse( COMMANDS_VERSION );
+		const Version dataVersion = version_parse( ini.getValue( "Version", "number" ).value_or( "" ) );
 
 		if ( version_compatible( version, dataVersion ) ) {
 			globalOutputStream() << "commands import: data version " << dataVersion << " is compatible with code version " << version << '\n';
-			ReadCommandMap visitor( strINI );
+			ReadCommandMap visitor( ini );
 			GlobalShortcuts_foreach( visitor );
 			globalOutputStream() << "parsed " << visitor.count() << " custom shortcuts\n";
 		}

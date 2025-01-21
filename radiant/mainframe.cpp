@@ -1056,7 +1056,7 @@ void create_view_menu( QMenuBar *menubar, MainFrame::EViewStyle style ){
 
 		create_menu_item_with_mnemonic( submenu, "&Off", "RegionOff" );
 		create_menu_item_with_mnemonic( submenu, "&Set XY", "RegionSetXY" );
-		create_menu_item_with_mnemonic( submenu, "Set _Brush", "RegionSetBrush" );
+		create_menu_item_with_mnemonic( submenu, "Set &Brush", "RegionSetBrush" );
 		create_check_menu_item_with_mnemonic( submenu, "Set Se&lection", "RegionSetSelection" );
 	}
 
@@ -1209,7 +1209,7 @@ void create_help_menu( QMenuBar *menubar ){
 	create_game_help_menu( menu );
 
 	create_menu_item_with_mnemonic( menu, "Bug report", FreeCaller<OpenBugReportURL>() );
-	create_menu_item_with_mnemonic( menu, "Check for NetRadiant update (web)", "CheckForUpdate" ); // FIXME
+	create_menu_item_with_mnemonic( menu, "Check for NetRadiant update", "CheckForUpdate" ); // FIXME
 	create_menu_item_with_mnemonic( menu, "&About", FreeCaller<DoAbout>() );
 }
 

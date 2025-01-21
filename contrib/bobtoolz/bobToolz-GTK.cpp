@@ -19,7 +19,6 @@
 
 
 
-#include "str.h"
 #include "qerplugin.h"
 #include "mathlib.h"
 #include "string/string.h"
@@ -42,14 +41,8 @@ void BobToolz_construct(){
 void BobToolz_destroy(){
 	g_PathView.reset();
 	g_VisView.reset();
-	if ( g_TrainView ) {
-		delete g_TrainView;
-		g_TrainView = NULL;
-	}
-	if ( g_TreePlanter ) {
-		delete g_TreePlanter;
-		g_TreePlanter = NULL;
-	}
+	g_TrainView.reset();
+	g_TreePlanter.reset();
 }
 
 // plugin name

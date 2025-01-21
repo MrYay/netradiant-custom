@@ -369,8 +369,7 @@ void DoAbout(){
 				}
 				{
 					auto button = buttons->addButton( "Changelog", QDialogButtonBox::ButtonRole::NoRole );
-					QObject::connect( button, &QPushButton::clicked, [](){ OpenURL( StringStream( AppPath_get(), "changelog.txt" ) ); } );
-					button->setEnabled( false );
+					QObject::connect( button, &QPushButton::clicked, [](){ OpenURL( StringStream( AppPath_get(), "docs/changelog-custom.txt" ) ); } );
 				}
 				{
 					auto button = buttons->addButton( "About Qt", QDialogButtonBox::ButtonRole::NoRole );
@@ -656,7 +655,7 @@ QCompleter inactive entry in list // because is wrapAround()
 
 static const struct{ const char *name; const char *text; } c_shaderTemplates[] = {
 	{
-		"map",
+		"%map",
 R"(
 	{
 		map $lightmap
@@ -671,7 +670,7 @@ R"(
 )"
 	},
 	{
-		"map-vertex",
+		"%map-vertex",
 R"(
 	surfaceparm nolightmap
 	{
@@ -682,7 +681,7 @@ R"(
 )"
 	},
 	{
-		"mask",
+		"%mask",
 R"(
 	cull none
 	{
@@ -696,7 +695,8 @@ R"(
 		depthFunc equal
 	}
 	{
-		map %s
+		// same texture once more
+		map textures/
 		blendFunc GL_DST_COLOR GL_ZERO
 		rgbGen identity
 		depthFunc equal
@@ -705,7 +705,7 @@ R"(
 )"
 	},
 	{
-		"mask-vertex",
+		"%mask-vertex",
 R"(
 	surfaceparm nolightmap
 	cull none
@@ -719,7 +719,7 @@ R"(
 )"
 	},
 	{
-		"blend",
+		"%blend",
 R"(
 	cull none
 	{
@@ -731,6 +731,33 @@ R"(
 		blendFunc GL_DST_COLOR GL_ZERO
 		rgbGen identity
 	}
+}
+)"
+	},
+	{
+		"%remap",
+R"(
+	// compile time parameter
+	surfaceparm slick
+	qer_editorimage textures/
+	// remap back to original shader
+	q3map_remapShader textures/
+}
+)"
+	},
+	{
+		"%skybox",
+R"(
+	qer_editorImage env/
+	surfaceparm noimpact
+	surfaceparm nolightmap
+	surfaceparm sky
+	q3map_sunExt 1 1 1 85 -43 60 2 16
+	q3map_LightMapFilterRadius 0 8
+	q3map_skylight 70 4
+	nopicmip
+	// path without _bk.tga suffix
+	skyparms env/
 }
 )"
 	},
@@ -907,13 +934,13 @@ static const std::vector<ShaderFormat> g_shaderGeneralFormats{
 		}
 	},
 	{
-		"qer_editorImage %t", "quake-editor-radiant-directives.html#editorImage", c_colorKeyLv1
+		"qer_editorImage %t", c_pageQER, c_colorKeyLv1
 	},
 	{
-		"qer_trans %f", "quake-editor-radiant-directives.html#trans", c_colorKeyLv1
+		"qer_trans %f", c_pageQER, c_colorKeyLv1
 	},
 	{
-		"qer_alphaFunc %s %f", "quake-editor-radiant-directives.html#alphaFunc", c_colorKeyLv1, {
+		"qer_alphaFunc %s %f", c_pageQER, c_colorKeyLv1, {
 			"equal",
 			"greater",
 			"less",
@@ -1227,7 +1254,6 @@ static const std::vector<ShaderFormat> g_shaderStageFormats{
 			"oneMinusEntity",
 			"vertex",
 			"oneMinusVertex",
-			"portal",
 		}
 	},
 	{
@@ -1237,11 +1263,13 @@ static const std::vector<ShaderFormat> g_shaderStageFormats{
 			"square",
 			"sawtooth",
 			"inversesawtooth",
-			"noise",
 		}
 	},
 	{
-		"alphaGen const %f", c_pageStage, c_colorKeyLv2
+		"alphaGen %s %f", c_pageStage, c_colorKeyLv2, {
+			"const",
+			"portal",
+		}
 	},
 	{
 		"tcGen %s", c_pageStage, c_colorKeyLv2, {
@@ -1572,7 +1600,7 @@ class QLineEdit_search : public QLineEdit
 	QPlainTextEdit& m_textEdit;
 public:
 	QLineEdit_search( QPlainTextEdit& textEdit ) : m_textEdit( textEdit ){
-		setPlaceholderText( QString::fromUtf8( u8"🔍" ) );
+		setPlaceholderText( QString::fromUtf8( "🔍" ) );
 		QObject::connect( this, &QLineEdit::textEdited, [this]( const QString &text ){
 			// when typing, we do not want jumping to next occurence on each letter input, set cursor to selection start
 			if( auto cursor = m_textEdit.textCursor(); cursor.hasSelection() ){
@@ -1652,10 +1680,10 @@ public:
 			return string_compare_nocase_n( texTree.m_name.c_str(), prefix.prefix, strlen( prefix.prefix ) ) > 0;
 		}
 		bool operator()( const TexTree& texTree, const StringRange range ) const {
-			return string_compare_nocase_n( texTree.m_name.c_str(), range.begin(), range.size() ) < 0;
+			return string_compare_nocase_n( texTree.m_name.c_str(), range.data(), range.size() ) < 0;
 		}
 		bool operator()( const StringRange range, const TexTree& texTree ) const {
-			return string_compare_nocase_n( texTree.m_name.c_str(), range.begin(), range.size() ) > 0;
+			return string_compare_nocase_n( texTree.m_name.c_str(), range.data(), range.size() ) > 0;
 		}
 	};
 
@@ -1737,6 +1765,10 @@ public:
 		QObject::connect( m_completer, QOverload<const QString &>::of( &QCompleter::activated ), [this]( const QString& str ){ autoCompleteInsert( str ); } );
 
 		setLineWrapMode( QPlainTextEdit::LineWrapMode::NoWrap );
+		QFont font( "nonexistent" ); // dummy name is required
+		font.setStyleHint( QFont::Monospace );
+		setFont( font );
+		updateTabStopDistance();
 		new ShaderHighlighter( document() );
 
 		m_lineNumberArea = new LineNumberArea( this, MemberCaller1<QPlainTextEdit_Shader, QPaintEvent *, &QPlainTextEdit_Shader::lineNumberAreaPaintEvent>( *this ) );
@@ -1940,6 +1972,7 @@ protected:
 		if( e->modifiers() & Qt::ControlModifier ){
 			const float delta = e->angleDelta().y() / 120.f;
 			zoomInF( delta );
+			updateTabStopDistance();
 			return;
 		}
 		QPlainTextEdit::wheelEvent(e);
@@ -1980,6 +2013,9 @@ protected:
 		setViewportMargins( m_lineNumberArea->lineNumberAreaWidth(), 0, 0, 0 );
 	}
 private:
+	void updateTabStopDistance(){
+		setTabStopDistance( fontMetrics().horizontalAdvance( "MMMM" ) );
+	}
 	void texTree_construct(){
 		class LoadTexturesByTypeVisitor : public ImageModules::Visitor
 		{

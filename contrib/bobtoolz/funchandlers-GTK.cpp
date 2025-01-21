@@ -21,8 +21,7 @@
 
 #include "dialogs/dialogs-gtk.h"
 
-#include <list>
-#include "str.h"
+#include "string/string.h"
 
 #include "DPoint.h"
 #include "DPlane.h"
@@ -47,24 +46,21 @@
 
 #include <vector>
 #include <list>
-#include <map>
 #include <algorithm>
 
 #include "scenelib.h"
 
 // for autocaulk
-std::list<Str> exclusionList;       // whole brush exclusion
-std::list<Str> exclusionList_Face;  // single face exclusion
+std::vector<CopiedString> exclusionList;       // whole brush exclusion
+std::vector<CopiedString> exclusionList_Face;  // single face exclusion
 
 bool el1Loaded =        false;
 bool el2Loaded =        false;
-bool clrLst1Loaded =    false;
-bool clrLst2Loaded =    false;
 
 std::unique_ptr<DBobView> g_PathView;
 std::unique_ptr<DVisDrawer> g_VisView;
-DTrainDrawer*   g_TrainView =       NULL;
-DTreePlanter*   g_TreePlanter =     NULL;
+std::unique_ptr<DTrainDrawer> g_TrainView;
+std::unique_ptr<DTreePlanter> g_TreePlanter;
 // -------------
 
 //========================//
@@ -75,10 +71,10 @@ void LoadLists(){
 	char buffer[256];
 
 	if ( !el1Loaded ) {
-		el1Loaded = LoadExclusionList( GetFilename( buffer, "bt/bt-el1.txt" ), &exclusionList );
+		el1Loaded = LoadExclusionList( GetFilename( buffer, "bt/bt-el1.txt" ), exclusionList );
 	}
 	if ( !el2Loaded ) {
-		el2Loaded = LoadExclusionList( GetFilename( buffer, "bt/bt-el2.txt" ), &exclusionList_Face );
+		el2Loaded = LoadExclusionList( GetFilename( buffer, "bt/bt-el2.txt" ), exclusionList_Face );
 	}
 }
 
@@ -116,7 +112,7 @@ void DoIntersect(){
 		break;
 	}
 	}
-	world.RemoveNonCheckBrushes( &exclusionList );
+	world.RemoveNonCheckBrushes( exclusionList );
 
 	bool* pbSelectList;
 	if ( rs.bDuplicateOnly ) {
@@ -648,12 +644,8 @@ void DoVisAnalyse(){
 }
 
 void DoTrainPathPlot() {
-	if ( g_TrainView ) {
-		delete g_TrainView;
-		g_TrainView = NULL;
-	}
-
-	g_TrainView = new DTrainDrawer();
+	g_TrainView.reset();
+	g_TrainView.reset( new DTrainDrawer() );
 }
 
 void DoCaulkSelection() {
@@ -672,20 +664,21 @@ void DoCaulkSelection() {
 }
 
 void DoTreePlanter() {
-	UndoableCommand undo( "bobToolz.treePlanter" );
 	if ( g_TreePlanter ) {
-		delete g_TreePlanter;
-		g_TreePlanter = NULL;
-		return;
+		g_TreePlanter.reset();
 	}
-
-	g_TreePlanter = new DTreePlanter();
+	else{
+		g_TreePlanter.reset( new DTreePlanter() );
+	}
 }
 
 void DoDropEnts() {
-	UndoableCommand undo( "bobToolz.dropEntities" );
 	if ( g_TreePlanter ) {
+		UndoableCommand undo( "bobToolz.dropEntities" );
 		g_TreePlanter->DropEntsToGround();
+	}
+	else{
+		globalErrorStream() << "bobToolz::DropEntity error: bobToolz::TreePlanter must be active\n";
 	}
 }
 
@@ -697,14 +690,11 @@ void DoMakeChain() {
 			return;
 		}
 		UndoableCommand undo( "bobToolz.makeChain" );
-		DTreePlanter pl;
-		pl.MakeChain( rs.linkNum,rs.linkName );
+		MakeChain( rs.linkNum, rs.linkName );
 	}
 }
 
 typedef DPoint* pntTripple[3];
-
-bool bFacesNoTop[6] = {true, true, true, true, true, false};
 
 void DoFlipTerrain() {
 	UndoableCommand undo( "bobToolz.flipTerrain" );
